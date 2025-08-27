@@ -237,85 +237,20 @@ exports.Prisma.JsonNullValueInput = {
   JsonNull: Prisma.JsonNull
 };
 
+exports.Prisma.QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+};
+
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
-};
-
-exports.Prisma.UserOrderByRelevanceFieldEnum = {
-  id: 'id',
-  email: 'email',
-  name: 'name',
-  subscriptionTier: 'subscriptionTier',
-  subscriptionStatus: 'subscriptionStatus',
-  stripeCustomerId: 'stripeCustomerId'
 };
 
 exports.Prisma.JsonNullValueFilter = {
   DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
-};
-
-exports.Prisma.QueryMode = {
-  default: 'default',
-  insensitive: 'insensitive'
-};
-
-exports.Prisma.ProjectOrderByRelevanceFieldEnum = {
-  id: 'id',
-  source: 'source',
-  sourceId: 'sourceId',
-  name: 'name',
-  description: 'description',
-  url: 'url'
-};
-
-exports.Prisma.ProjectMetricsOrderByRelevanceFieldEnum = {
-  id: 'id',
-  projectId: 'projectId'
-};
-
-exports.Prisma.ProjectAnalysisOrderByRelevanceFieldEnum = {
-  id: 'id',
-  projectId: 'projectId',
-  trend: 'trend',
-  marketPotential: 'marketPotential',
-  competitionLevel: 'competitionLevel'
-};
-
-exports.Prisma.UserSavedProjectOrderByRelevanceFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  notes: 'notes'
-};
-
-exports.Prisma.UserSubscriptionOrderByRelevanceFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  stripeSubscriptionId: 'stripeSubscriptionId',
-  priceId: 'priceId',
-  status: 'status'
-};
-
-exports.Prisma.DataSourceOrderByRelevanceFieldEnum = {
-  id: 'id',
-  name: 'name',
-  displayName: 'displayName'
-};
-
-exports.Prisma.CrawlLogOrderByRelevanceFieldEnum = {
-  id: 'id',
-  dataSourceId: 'dataSourceId',
-  status: 'status',
-  errorMessage: 'errorMessage'
-};
-
-exports.Prisma.ProjectTagOrderByRelevanceFieldEnum = {
-  id: 'id',
-  projectId: 'projectId',
-  tag: 'tag'
 };
 
 
