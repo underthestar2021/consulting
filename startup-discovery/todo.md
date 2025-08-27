@@ -117,6 +117,23 @@
   - 配置 CDN 和缓存策略
   - 实现 API 速率限制处理
 
+### 第五阶段: Vercel 部署配置 (静态展示)
+- [x] **Prisma 部署配置**
+  - 已配置 `postinstall` 脚本自动生成 Prisma Client
+  - 已添加 `prisma generate` 到构建流程
+  - 已创建 vercel.json 配置文件 (无定时任务)
+  - 数据库迁移脚本: `npm run db:deploy`
+- [ ] **环境变量配置**
+  - 在 Vercel Dashboard 设置 `DATABASE_URL` (生产数据库)
+  - 其他 API 密钥可选 (仅展示数据无需爬虫)
+- [ ] **构建优化**
+  - 配置 Turbopack 生产构建
+  - API 路由超时设置为10秒 (仅读取数据)
+- [ ] **数据库准备**
+  - 确保生产数据库已有项目数据
+  - 运行 `prisma migrate deploy` 部署数据库架构
+  - 前端通过 `/api/projects` 获取展示数据
+
 ## 🛠 技术债务和已知问题
 
 - [x] **修复 Fire 图标问题** - 已替换为 Flame
