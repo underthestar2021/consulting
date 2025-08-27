@@ -3,258 +3,236 @@
 import { useState, useEffect } from 'react'
 import Navbar from '@/components/navbar'
 import ProjectCard from '@/components/project-card'
-import { Project } from '@/types/database'
 import { Search, TrendingUp, Sparkles, Rocket } from 'lucide-react'
+import { Project } from '@/types/database'
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [filter, setFilter] = useState<'all' | 'github' | 'product_hunt' | 'reddit'>('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalProjects, setTotalProjects] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    loadProjects()
+    setProjects([]) // 清空现有项目
+    setPage(1)      // 重置页码
+    loadProjects(true) // 重置加载
+  }, [filter])
+
+  useEffect(() => {
+    loadProjects(true) // 初始加载
   }, [])
 
-  const loadProjects = async () => {
-    setLoading(true)
-    const mockProjects: Project[] = [
-      {
-        id: '1',
-        source: 'github',
-        source_id: 'gh1',
-        name: 'AI Code Assistant',
-        description: '基于GPT-4的智能代码助手，支持多种编程语言的代码生成、优化和调试',
-        url: 'https://github.com/example/ai-code-assistant',
-        category: ['AI', 'Developer Tools'],
-        tags: ['ai', 'gpt-4', 'code-generation', 'developer-tools'],
-        metrics: {
-          stars: 5432,
-          forks: 892,
-          issues: 34,
-          contributors: 45
-        },
-        analysis: {
-          score: 85,
-          trend: 'rising',
-          market_potential: 'high',
-          competition_level: 'medium',
-          success_probability: 78,
-          key_insights: ['AI编程助手市场快速增长', '强大的社区支持'],
-          risks: ['依赖第三方API'],
-          opportunities: ['企业版本开发潜力大']
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        discovered_at: new Date().toISOString()
-      },
-      {
-        id: '2',
-        source: 'product_hunt',
-        source_id: 'ph1',
-        name: 'TaskFlow Pro',
-        description: '革命性的项目管理工具，通过AI自动化工作流程，提升团队效率50%',
-        url: 'https://www.producthunt.com/posts/taskflow-pro',
-        category: ['Productivity', 'SaaS'],
-        tags: ['productivity', 'project-management', 'ai', 'automation'],
-        metrics: {
-          upvotes: 892,
-          comments: 156
-        },
-        analysis: {
-          score: 72,
-          trend: 'stable',
-          market_potential: 'medium',
-          competition_level: 'high',
-          success_probability: 65,
-          key_insights: ['项目管理市场竞争激烈但需求持续'],
-          risks: ['市场饱和度高'],
-          opportunities: ['垂直行业定制化']
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        discovered_at: new Date().toISOString()
-      },
-      {
-        id: '3',
-        source: 'reddit',
-        source_id: 'rd1',
-        name: 'CryptoWallet Plus',
-        description: '安全、易用的多链加密货币钱包，支持DeFi集成和NFT管理',
-        url: 'https://reddit.com/r/startups/example',
-        category: ['Blockchain', 'Finance'],
-        tags: ['crypto', 'wallet', 'defi', 'nft', 'web3'],
-        metrics: {
-          upvotes: 342,
-          comments: 89
-        },
-        analysis: {
-          score: 68,
-          trend: 'rising',
-          market_potential: 'high',
-          competition_level: 'medium',
-          success_probability: 70,
-          key_insights: ['Web3领域持续增长', '用户体验是关键差异化因素'],
-          risks: ['监管不确定性'],
-          opportunities: ['机构客户市场']
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        discovered_at: new Date().toISOString()
+  const loadProjects = async (reset = false) => {
+    if (reset) {
+      setLoading(true)
+      setPage(1)
+    } else {
+      setLoadingMore(true)
+    }
+
+    try {
+      const currentPage = reset ? 1 : page + 1  // 加载下一页
+      const sourceParam = filter === 'all' ? '' : `&source=${filter}`
+      console.log(`🌐 API请求: page=${currentPage}, reset=${reset}`)
+      const response = await fetch(`/api/projects?page=${currentPage}&limit=20${sourceParam}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        if (reset) {
+          setProjects(data.projects || [])
+        } else {
+          // 防止重复项目，根据ID去重
+          const newProjects = data.projects || []
+          setProjects(prev => {
+            const existingIds = new Set(prev.map((p: Project) => p.id))
+            const uniqueNewProjects = newProjects.filter((p: Project) => !existingIds.has(p.id))
+            console.log(`🔄 分页加载: 新增${newProjects.length}项目, 去重后${uniqueNewProjects.length}项目`)
+            return [...prev, ...uniqueNewProjects]
+          })
+        }
+        
+        setTotalProjects(data.pagination?.total || 0)
+        setHasMore((data.projects || []).length === 20)
+        
+        if (!reset) {
+          setPage(currentPage)
+        }
+        
+        console.log(`✅ 项目加载成功: 当前${reset ? data.projects?.length || 0 : projects.length + (data.projects?.length || 0)}个, 总共${data.pagination?.total || 0}个`)
+      } else {
+        console.error('Failed to load projects')
       }
-    ]
-    
-    setTimeout(() => {
-      setProjects(mockProjects)
+    } catch (error) {
+      console.error('Error loading projects:', error)
+    } finally {
       setLoading(false)
-    }, 1000)
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+    console.log('🔄 加载更多项目...')
+    await loadProjects(false)
   }
 
   const filteredProjects = projects.filter(project => {
-    const matchesFilter = filter === 'all' || project.source === filter
-    const matchesSearch = searchTerm === '' || 
-      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    
-    return matchesFilter && matchesSearch
+    if (filter !== 'all' && project.source !== filter) return false
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      return project.name.toLowerCase().includes(term) ||
+             (project.description?.toLowerCase().includes(term)) ||
+             (project.category?.some((cat: string) => cat.toLowerCase().includes(term))) ||
+             (project.tags?.some((tag: string) => tag.toLowerCase().includes(term)))
+    }
+    return true
   })
+
+  if (loading && projects.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">加载项目中...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="relative bg-gradient-to-br from-indigo-600 to-purple-700 text-white">
-        <div className="absolute inset-0 bg-black opacity-50"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              发现下一个独角兽项目
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 text-white">
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="flex justify-center mb-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-full p-4">
+                <Rocket className="h-12 w-12" />
+              </div>
+            </div>
+            <h1 className="text-5xl font-bold mb-6 leading-tight">
+              发现下一个
+              <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
+                独角兽
+              </span>
+              项目
             </h1>
-            <p className="text-xl mb-8 text-gray-200">
-              每日精选创业项目，AI驱动的市场分析，助您把握投资机会
+            <p className="text-xl opacity-90 mb-8 leading-relaxed">
+              从 GitHub、Product Hunt、Reddit 等平台实时追踪最具潜力的创业项目，
+              <br />使用 AI 分析帮你找到下一个投资机会
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-indigo-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
-                免费试用
-              </button>
-              <button className="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition">
-                了解更多
-              </button>
+            <div className="flex justify-center space-x-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+                <TrendingUp className="h-5 w-5 inline mr-2" />
+                <span className="text-sm font-medium">{totalProjects} 个项目</span>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+                <Sparkles className="h-5 w-5 inline mr-2" />
+                <span className="text-sm font-medium">AI 智能分析</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="flex-1">
-            <div className="relative">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="text"
-                placeholder="搜索项目名称、描述或标签..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                placeholder="搜索项目名称、描述、标签..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === 'all' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              全部
-            </button>
-            <button
-              onClick={() => setFilter('github')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === 'github' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              GitHub
-            </button>
-            <button
-              onClick={() => setFilter('product_hunt')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === 'product_hunt' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Product Hunt
-            </button>
-            <button
-              onClick={() => setFilter('reddit')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === 'reddit' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Reddit
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="bg-indigo-100 p-2 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">1,234</div>
-                <div className="text-sm text-gray-600">今日新项目</div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <Sparkles className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">89</div>
-                <div className="text-sm text-gray-600">高潜力项目</div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="bg-purple-100 p-2 rounded-lg">
-                <Rocket className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">456</div>
-                <div className="text-sm text-gray-600">快速增长中</div>
-              </div>
+            
+            {/* Source Filter */}
+            <div className="flex space-x-2">
+              {[
+                { value: 'all', label: '全部', count: totalProjects },
+                { value: 'github', label: 'GitHub' },
+                { value: 'product_hunt', label: 'Product Hunt' },
+                { value: 'reddit', label: 'Reddit' },
+              ].map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  onClick={() => setFilter(value as any)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    filter === value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                  {count && <span className="ml-2 text-sm">({count})</span>}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : (
+        {/* Results Count */}
+        <div className="flex justify-between items-center mb-6">
+          <p className="text-gray-600">
+            显示 {filteredProjects.length} 个项目 
+            {searchTerm && (
+              <span className="text-blue-600 font-medium">
+                {' '}包含 "{searchTerm}"
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Projects Grid */}
+        {filteredProjects.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredProjects.map(project => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
+        ) : (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">暂无项目</h3>
+            <p className="text-gray-500">
+              {searchTerm ? '未找到匹配的项目，尝试调整搜索条件' : '还没有发现任何项目，请稍后再来查看'}
+            </p>
+          </div>
         )}
 
-        {!loading && filteredProjects.length === 0 && (
-          <div className="text-center py-20">
-            <p className="text-gray-500">没有找到符合条件的项目</p>
+        {/* Load More Button */}
+        {filteredProjects.length > 0 && hasMore && (
+          <div className="text-center mt-8">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
+                  加载中...
+                </>
+              ) : (
+                '加载更多'
+              )}
+            </button>
           </div>
         )}
       </div>

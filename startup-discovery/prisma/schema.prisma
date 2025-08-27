@@ -1,0 +1,189 @@
+// Prisma schema for StartupScope project
+// MySQL database configuration
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String?
+  subscriptionTier   String   @default("free") @map("subscription_tier") // free, basic, pro
+  subscriptionStatus String   @default("active") @map("subscription_status") // active, canceled, past_due
+  stripeCustomerId   String?  @unique @map("stripe_customer_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  savedProjects UserSavedProject[]
+  subscriptions UserSubscription[]
+
+  @@map("users")
+}
+
+// 项目表
+model Project {
+  id           String   @id @default(cuid())
+  source       String // github, product_hunt, reddit, hackernews
+  sourceId     String   @map("source_id")
+  name         String
+  description  String?  @db.Text
+  url          String
+  category     Json     @default("[]") // JSON array of strings
+  tags         Json     @default("[]") // JSON array of strings
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  discoveredAt DateTime @default(now()) @map("discovered_at")
+
+  // 关联关系
+  metrics      ProjectMetrics?
+  analysis     ProjectAnalysis?
+  savedByUsers UserSavedProject[]
+  projectTags  ProjectTag[]
+
+  @@unique([source, sourceId], name: "unique_source_project")
+  @@index([source])
+  @@index([discoveredAt(sort: Desc)])
+  @@map("projects")
+}
+
+// 项目指标表
+model ProjectMetrics {
+  id           String   @id @default(cuid())
+  projectId    String   @unique @map("project_id")
+  stars        Int?
+  forks        Int?
+  issues       Int?
+  contributors Int?
+  upvotes      Int?
+  comments     Int?
+  views        Int?
+  dailyGrowth  Float?   @map("daily_growth")
+  weeklyGrowth Float?   @map("weekly_growth")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_metrics")
+}
+
+// 项目分析表
+model ProjectAnalysis {
+  id                 String   @id @default(cuid())
+  projectId          String   @unique @map("project_id")
+  score              Float
+  trend              String // rising, stable, declining
+  marketPotential    String   @map("market_potential") // high, medium, low
+  competitionLevel   String   @map("competition_level") // high, medium, low
+  successProbability Float    @map("success_probability")
+  competitors        Json     @default("[]") // JSON array of strings
+  keyInsights        Json     @default("[]") @map("key_insights") // JSON array of strings
+  risks              Json     @default("[]") // JSON array of strings
+  opportunities      Json     @default("[]") // JSON array of strings
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([score(sort: Desc)])
+  @@map("project_analysis")
+}
+
+// 用户保存的项目表
+model UserSavedProject {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  projectId String   @map("project_id")
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 关联关系
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId], name: "unique_user_project")
+  @@index([userId])
+  @@map("user_saved_projects")
+}
+
+// 用户订阅表
+model UserSubscription {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  stripeSubscriptionId String   @unique @map("stripe_subscription_id")
+  priceId              String   @map("price_id")
+  status               String // active, canceled, past_due
+  currentPeriodStart   DateTime @map("current_period_start")
+  currentPeriodEnd     DateTime @map("current_period_end")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_subscriptions")
+}
+
+// 数据源表 - 存储API密钥和配置
+model DataSource {
+  id          String    @id @default(uuid())
+  name        String    @unique // github, reddit, product_hunt, hackernews
+  displayName String    @map("display_name")
+  isActive    Boolean   @default(true) @map("is_active")
+  apiConfig   Json      @default("{}") @map("api_config") // API配置信息
+  credentials Json      @default("{}") // 存储加密的API密钥
+  lastCrawl   DateTime? @map("last_crawl")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // 关联关系
+  crawlLogs CrawlLog[]
+
+  @@map("data_sources")
+}
+
+// 爬虫日志表
+model CrawlLog {
+  id           String    @id @default(cuid())
+  dataSourceId String    @map("data_source_id")
+  status       String // success, failed, running
+  startTime    DateTime  @map("start_time")
+  endTime      DateTime? @map("end_time")
+  itemsFound   Int       @default(0) @map("items_found")
+  itemsSaved   Int       @default(0) @map("items_saved")
+  errorMessage String?   @map("error_message") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // 关联关系
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([dataSourceId])
+  @@index([startTime(sort: Desc)])
+  @@map("crawl_logs")
+}
+
+// 项目标签表
+model ProjectTag {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  tag       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 关联关系
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, tag], name: "unique_project_tag")
+  @@index([tag])
+  @@map("project_tags")
+}
